@@ -1,8 +1,7 @@
 // ============================================
-// 🛡️ ANTI VIEW CODE (TAMBAHAN)
+// 🛡️ ANTI VIEW CODE
 // ============================================
 (function() {
-    // Blokir Ctrl+U, F12, Ctrl+Shift+I, dll
     document.onkeydown = function(e) {
         if (e.ctrlKey && e.key === 'u') { e.preventDefault(); return false; }
         if (e.ctrlKey && e.shiftKey && e.key === 'I') { e.preventDefault(); return false; }
@@ -12,13 +11,11 @@
         if (e.ctrlKey && e.key === 's') { e.preventDefault(); return false; }
     };
     
-    // Blokir klik kanan
     document.addEventListener('contextmenu', function(e) {
         e.preventDefault();
         return false;
     });
     
-    // Deteksi DevTools terbuka
     let devtoolsOpen = false;
     const threshold = 160;
     
@@ -29,7 +26,7 @@
         if (widthThreshold || heightThreshold) {
             if (!devtoolsOpen) {
                 devtoolsOpen = true;
-                document.body.innerHTML = '<div style="color:white;text-align:center;padding:50px;font-size:20px;">⚠️ DevTools terdeteksi! Tutup untuk melanjutkan.</div>';
+                document.body.innerHTML = '<div style="color:white;text-align:center;padding:50px;font-size:20px;font-family:sans-serif;">⚠️ DevTools terdeteksi! Tutup untuk melanjutkan.</div>';
             }
         } else {
             devtoolsOpen = false;
@@ -42,7 +39,6 @@
 // ============================================
 let currentUser = null;
 
-// DOM Elements
 const loginOverlay = document.getElementById('loginOverlay');
 const mainApp = document.getElementById('mainApp');
 const signInForm = document.getElementById('signInForm');
@@ -50,7 +46,6 @@ const signUpForm = document.getElementById('signUpForm');
 const loginLoading = document.getElementById('loginLoading');
 const loginError = document.getElementById('loginError');
 
-// Switch form
 document.getElementById('showSignUp').addEventListener('click', (e) => {
     e.preventDefault();
     signInForm.style.display = 'none';
@@ -66,7 +61,7 @@ document.getElementById('showSignIn').addEventListener('click', (e) => {
 });
 
 // ============================================
-// 📝 SIGN UP (DENGAN no-cors)
+// 📝 SIGN UP
 // ============================================
 signUpForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -94,9 +89,11 @@ signUpForm.addEventListener('submit', async (e) => {
     showLoading();
     
     try {
-        await fetch(API_URL, {
+        const response = await fetch(API_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'text/plain',
+            },
             body: JSON.stringify({
                 action: 'signUp',
                 username: username,
@@ -105,15 +102,20 @@ signUpForm.addEventListener('submit', async (e) => {
             })
         });
         
-        // Karena no-cors ga bisa baca response, langsung masuk aja
-        currentUser = {
-            username: username,
-            email: email
-        };
-        localStorage.setItem('anonUsername', username);
-        localStorage.setItem('anonEmail', email);
-        enterChat();
+        const data = await response.json();
         
+        if (data.status === 'success') {
+            currentUser = {
+                username: username,
+                email: email
+            };
+            localStorage.setItem('anonUsername', username);
+            localStorage.setItem('anonEmail', email);
+            enterChat();
+        } else {
+            showError(data.message || 'Gagal mendaftar!');
+            hideLoading();
+        }
     } catch (error) {
         showError('Gagal terhubung ke server!');
         hideLoading();
@@ -121,7 +123,7 @@ signUpForm.addEventListener('submit', async (e) => {
 });
 
 // ============================================
-// 🔐 SIGN IN (DENGAN no-cors)
+// 🔐 SIGN IN
 // ============================================
 signInForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -137,9 +139,11 @@ signInForm.addEventListener('submit', async (e) => {
     showLoading();
     
     try {
-        await fetch(API_URL, {
+        const response = await fetch(API_URL, {
             method: 'POST',
-            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'text/plain',
+            },
             body: JSON.stringify({
                 action: 'signIn',
                 email: email,
@@ -147,16 +151,20 @@ signInForm.addEventListener('submit', async (e) => {
             })
         });
         
-        // Karena no-cors, langsung masuk pake username dari email
-        const username = email.split('@')[0];
-        currentUser = {
-            username: username,
-            email: email
-        };
-        localStorage.setItem('anonUsername', username);
-        localStorage.setItem('anonEmail', email);
-        enterChat();
+        const data = await response.json();
         
+        if (data.status === 'success') {
+            currentUser = {
+                username: data.username,
+                email: email
+            };
+            localStorage.setItem('anonUsername', data.username);
+            localStorage.setItem('anonEmail', email);
+            enterChat();
+        } else {
+            showError(data.message || 'Email atau password salah!');
+            hideLoading();
+        }
     } catch (error) {
         showError('Gagal terhubung ke server!');
         hideLoading();
@@ -204,6 +212,7 @@ function showLoading() {
 
 function hideLoading() {
     loginLoading.style.display = 'none';
+    signInForm.style.display = 'block';
 }
 
 function showError(msg) {
@@ -214,7 +223,7 @@ function showError(msg) {
 }
 
 // ============================================
-// 🔄 AUTO LOGIN (CEK LOCALSTORAGE)
+// 🔄 AUTO LOGIN
 // ============================================
 window.addEventListener('load', () => {
     const savedUsername = localStorage.getItem('anonUsername');
@@ -262,14 +271,36 @@ async function loadMessages() {
     username = currentUser.username;
     
     try {
-        const response = await fetch(`${API_URL}?action=getMessages&lastId=${lastMessageId}`, {
-            mode: 'no-cors'
-        });
+        const response = await fetch(`${API_URL}?action=getMessages&lastId=${lastMessageId}`);
+        const data = await response.json();
         
-        // Karena no-cors, kita ga bisa baca response
-        // Tapi pesan yang dikirim user sendiri tetap akan muncul
-        // via optimistic UI di fungsi kirimPesan()
-        
+        if (data.status === 'success') {
+            if (isFirstLoad) {
+                chatArea.innerHTML = '';
+                renderedMessageIds.clear();
+                isFirstLoad = false;
+            }
+            
+            updateOnlineIndicator(data.onlineCount || 0);
+            
+            if (data.messages && data.messages.length > 0) {
+                let hasNewMessage = false;
+                
+                data.messages.forEach(msg => {
+                    if (msg.id > lastMessageId && !renderedMessageIds.has(msg.id)) {
+                        const isMe = (msg.sender === username);
+                        addMessageToUI(msg.sender, msg.message, msg.timestamp, isMe);
+                        renderedMessageIds.add(msg.id);
+                        lastMessageId = msg.id;
+                        hasNewMessage = true;
+                    }
+                });
+                
+                if (hasNewMessage) {
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                }
+            }
+        }
     } catch (error) {
         console.error('Error:', error);
     }
@@ -340,20 +371,20 @@ function samarkan() {
 }
 
 // ============================================
-// 📤 KIRIM PESAN (DENGAN no-cors)
+// 📤 KIRIM PESAN
 // ============================================
 function kirimPesan() {
     const message = messageInput.value.trim();
     if (!message || !currentUser) return;
     
-    // Optimistic UI - tampilkan pesan langsung
     addMessageToUI(currentUser.username, message, new Date().toLocaleString('id-ID'), true);
     messageInput.value = '';
     
-    // Kirim ke server (fire and forget)
     fetch(API_URL, {
         method: 'POST',
-        mode: 'no-cors',
+        headers: {
+            'Content-Type': 'text/plain',
+        },
         body: JSON.stringify({
             action: 'sendMessage',
             sender: currentUser.username,
