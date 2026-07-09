@@ -1,24 +1,45 @@
 // ============================================
-// USER IDENTITY
+// 👤 USER IDENTITY (User1, User2, User3...)
 // ============================================
+let username = localStorage.getItem('anonUsername');
 let userNumber = localStorage.getItem('anonNumber');
-if (!userNumber) {
-    userNumber = Math.floor(Math.random() * 9999);
-    localStorage.setItem('anonNumber', userNumber);
-}
-
-let username = 'Anonymous#' + userNumber;
+let userColor = localStorage.getItem('anonColor');
 
 const colorPalette = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
     '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
     '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA'
 ];
-let userColor = localStorage.getItem('anonColor');
-if (!userColor) {
-    userColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
-    localStorage.setItem('anonColor', userColor);
+
+async function initUser() {
+    if (!username || !userNumber || !userColor) {
+        try {
+            const response = await fetch(API_URL + '?action=getUserNumber');
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                userNumber = data.userCount + 1;
+                username = 'User' + userNumber;
+                userColor = colorPalette[(data.userCount) % colorPalette.length];
+                
+                localStorage.setItem('anonUsername', username);
+                localStorage.setItem('anonNumber', userNumber);
+                localStorage.setItem('anonColor', userColor);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            userNumber = Math.floor(Math.random() * 9999);
+            username = 'User' + userNumber;
+            userColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+            localStorage.setItem('anonUsername', username);
+            localStorage.setItem('anonNumber', userNumber);
+            localStorage.setItem('anonColor', userColor);
+        }
+    }
 }
+
+// Panggil initUser saat load
+initUser();
 
 // ============================================
 // TRACKING
@@ -208,9 +229,8 @@ function addMessageToUI(sender, message, timestamp, isMe) {
     const wrapper = document.createElement('div');
     wrapper.className = 'message-wrapper ' + (isMe ? 'me' : 'other');
     
-    // Extract nomor dari sender
-    const numberMatch = sender.match(/#(\d+)/);
-    const displayNumber = numberMatch ? '#' + numberMatch[1] : sender;
+    // Tampilkan username apa adanya (User1, User2, dst)
+    const displayNumber = sender;
     
     const parsedMessage = parseHiddenText(message);
     
@@ -271,17 +291,14 @@ function escapeHtml(text) {
 // 🛡️ ANTI-SCREENSHOT (DASAR)
 // ============================================
 document.addEventListener('keydown', function(e) {
-    // Deteksi Print Screen (Windows)
     if (e.key === 'PrintScreen') {
         document.body.style.opacity = '0.1';
         setTimeout(() => { document.body.style.opacity = '1'; }, 500);
     }
 });
 
-// Deteksi kehilangan fokus (kemungkinan screenshot mobile)
 document.addEventListener('visibilitychange', function() {
     if (document.hidden) {
-        // User buka app lain (mungkin screenshot)
         chatArea.style.filter = 'blur(10px)';
     } else {
         chatArea.style.filter = 'none';
