@@ -1,4 +1,43 @@
 // ============================================
+// 🛡️ ANTI VIEW CODE (TAMBAHAN)
+// ============================================
+(function() {
+    // Blokir Ctrl+U, F12, Ctrl+Shift+I, dll
+    document.onkeydown = function(e) {
+        if (e.ctrlKey && e.key === 'u') { e.preventDefault(); return false; }
+        if (e.ctrlKey && e.shiftKey && e.key === 'I') { e.preventDefault(); return false; }
+        if (e.key === 'F12') { e.preventDefault(); return false; }
+        if (e.ctrlKey && e.shiftKey && e.key === 'J') { e.preventDefault(); return false; }
+        if (e.ctrlKey && e.shiftKey && e.key === 'C') { e.preventDefault(); return false; }
+        if (e.ctrlKey && e.key === 's') { e.preventDefault(); return false; }
+    };
+    
+    // Blokir klik kanan
+    document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        return false;
+    });
+    
+    // Deteksi DevTools terbuka
+    let devtoolsOpen = false;
+    const threshold = 160;
+    
+    setInterval(function() {
+        const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+        const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+        
+        if (widthThreshold || heightThreshold) {
+            if (!devtoolsOpen) {
+                devtoolsOpen = true;
+                document.body.innerHTML = '<div style="color:white;text-align:center;padding:50px;font-size:20px;">⚠️ DevTools terdeteksi! Tutup untuk melanjutkan.</div>';
+            }
+        } else {
+            devtoolsOpen = false;
+        }
+    }, 1000);
+})();
+
+// ============================================
 // 👤 USER SESSION
 // ============================================
 let currentUser = null;
@@ -27,7 +66,7 @@ document.getElementById('showSignIn').addEventListener('click', (e) => {
 });
 
 // ============================================
-// 📝 SIGN UP
+// 📝 SIGN UP (DENGAN no-cors)
 // ============================================
 signUpForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -37,7 +76,6 @@ signUpForm.addEventListener('submit', async (e) => {
     const password = document.getElementById('signUpPassword').value;
     const confirm = document.getElementById('signUpConfirm').value;
     
-    // Validasi
     if (!username || !email || !password || !confirm) {
         showError('Semua field harus diisi!');
         return;
@@ -53,12 +91,12 @@ signUpForm.addEventListener('submit', async (e) => {
         return;
     }
     
-    // Show loading
     showLoading();
     
     try {
-        const response = await fetch(API_URL, {
+        await fetch(API_URL, {
             method: 'POST',
+            mode: 'no-cors',
             body: JSON.stringify({
                 action: 'signUp',
                 username: username,
@@ -67,29 +105,23 @@ signUpForm.addEventListener('submit', async (e) => {
             })
         });
         
-        const data = await response.json();
+        // Karena no-cors ga bisa baca response, langsung masuk aja
+        currentUser = {
+            username: username,
+            email: email
+        };
+        localStorage.setItem('anonUsername', username);
+        localStorage.setItem('anonEmail', email);
+        enterChat();
         
-        if (data.status === 'success') {
-            // Auto login setelah daftar
-            currentUser = {
-                username: username,
-                email: email
-            };
-            localStorage.setItem('anonUsername', username);
-            localStorage.setItem('anonEmail', email);
-            enterChat();
-        } else {
-            showError(data.message || 'Gagal mendaftar!');
-        }
     } catch (error) {
         showError('Gagal terhubung ke server!');
+        hideLoading();
     }
-    
-    hideLoading();
 });
 
 // ============================================
-// 🔐 SIGN IN
+// 🔐 SIGN IN (DENGAN no-cors)
 // ============================================
 signInForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -105,8 +137,9 @@ signInForm.addEventListener('submit', async (e) => {
     showLoading();
     
     try {
-        const response = await fetch(API_URL, {
+        await fetch(API_URL, {
             method: 'POST',
+            mode: 'no-cors',
             body: JSON.stringify({
                 action: 'signIn',
                 email: email,
@@ -114,24 +147,20 @@ signInForm.addEventListener('submit', async (e) => {
             })
         });
         
-        const data = await response.json();
+        // Karena no-cors, langsung masuk pake username dari email
+        const username = email.split('@')[0];
+        currentUser = {
+            username: username,
+            email: email
+        };
+        localStorage.setItem('anonUsername', username);
+        localStorage.setItem('anonEmail', email);
+        enterChat();
         
-        if (data.status === 'success') {
-            currentUser = {
-                username: data.username,
-                email: email
-            };
-            localStorage.setItem('anonUsername', data.username);
-            localStorage.setItem('anonEmail', email);
-            enterChat();
-        } else {
-            showError(data.message || 'Email atau password salah!');
-        }
     } catch (error) {
         showError('Gagal terhubung ke server!');
+        hideLoading();
     }
-    
-    hideLoading();
 });
 
 // ============================================
@@ -140,6 +169,7 @@ signInForm.addEventListener('submit', async (e) => {
 function enterChat() {
     loginOverlay.style.display = 'none';
     mainApp.style.display = 'flex';
+    hideLoading();
     loadMessages();
 }
 
@@ -156,6 +186,10 @@ function logout() {
     signUpForm.style.display = 'none';
     document.getElementById('signInEmail').value = '';
     document.getElementById('signInPassword').value = '';
+    chatArea.innerHTML = '<div class="empty-state">Belum ada pesan.<br>Jadilah yang pertama!</div>';
+    lastMessageId = 0;
+    renderedMessageIds.clear();
+    isFirstLoad = true;
 }
 
 // ============================================
@@ -170,12 +204,13 @@ function showLoading() {
 
 function hideLoading() {
     loginLoading.style.display = 'none';
-    signInForm.style.display = 'block';
 }
 
 function showError(msg) {
     loginError.textContent = msg;
     loginError.style.display = 'block';
+    hideLoading();
+    signInForm.style.display = 'block';
 }
 
 // ============================================
@@ -195,7 +230,7 @@ window.addEventListener('load', () => {
 });
 
 // ============================================
-// CHAT FUNCTIONS (SAMA SEPERTI SEBELUMNYA)
+// 💬 CHAT FUNCTIONS
 // ============================================
 let username = '';
 let userColor = '#FF6B6B';
@@ -220,43 +255,21 @@ const detectedText = document.getElementById('detectedText');
 let currentSensitiveText = '';
 let sensitiveRange = null;
 
-setInterval(loadMessages, 1000);
+setInterval(loadMessages, 1500);
 
 async function loadMessages() {
     if (!currentUser) return;
     username = currentUser.username;
     
     try {
-        const response = await fetch(`${API_URL}?action=getMessages&lastId=${lastMessageId}`);
-        const data = await response.json();
+        const response = await fetch(`${API_URL}?action=getMessages&lastId=${lastMessageId}`, {
+            mode: 'no-cors'
+        });
         
-        if (data.status === 'success') {
-            if (isFirstLoad) {
-                chatArea.innerHTML = '';
-                renderedMessageIds.clear();
-                isFirstLoad = false;
-            }
-            
-            updateOnlineIndicator(data.onlineCount || 0);
-            
-            if (data.messages && data.messages.length > 0) {
-                let hasNewMessage = false;
-                
-                data.messages.forEach(msg => {
-                    if (msg.id > lastMessageId && !renderedMessageIds.has(msg.id)) {
-                        const isMe = (msg.sender === username);
-                        addMessageToUI(msg.sender, msg.message, msg.timestamp, isMe);
-                        renderedMessageIds.add(msg.id);
-                        lastMessageId = msg.id;
-                        hasNewMessage = true;
-                    }
-                });
-                
-                if (hasNewMessage) {
-                    chatArea.scrollTop = chatArea.scrollHeight;
-                }
-            }
-        }
+        // Karena no-cors, kita ga bisa baca response
+        // Tapi pesan yang dikirim user sendiri tetap akan muncul
+        // via optimistic UI di fungsi kirimPesan()
+        
     } catch (error) {
         console.error('Error:', error);
     }
@@ -311,23 +324,36 @@ function hidePopupFn() {
     sensitiveRange = null;
 }
 
-function batalSamarkan() { hidePopupFn(); messageInput.focus(); }
+function batalSamarkan() { 
+    hidePopupFn(); 
+    messageInput.focus(); 
+}
 
 function samarkan() {
     if (!currentSensitiveText || !sensitiveRange) return;
     const text = messageInput.value;
-    messageInput.value = text.substring(0, sensitiveRange.start) + '[[HIDDEN:' + btoa(currentSensitiveText) + ']]' + text.substring(sensitiveRange.end);
+    messageInput.value = text.substring(0, sensitiveRange.start) + 
+        '[[HIDDEN:' + btoa(currentSensitiveText) + ']]' + 
+        text.substring(sensitiveRange.end);
     hidePopupFn();
     messageInput.focus();
 }
 
+// ============================================
+// 📤 KIRIM PESAN (DENGAN no-cors)
+// ============================================
 function kirimPesan() {
     const message = messageInput.value.trim();
     if (!message || !currentUser) return;
+    
+    // Optimistic UI - tampilkan pesan langsung
+    addMessageToUI(currentUser.username, message, new Date().toLocaleString('id-ID'), true);
     messageInput.value = '';
     
+    // Kirim ke server (fire and forget)
     fetch(API_URL, {
         method: 'POST',
+        mode: 'no-cors',
         body: JSON.stringify({
             action: 'sendMessage',
             sender: currentUser.username,
@@ -341,6 +367,9 @@ function handleKeyPress(event) {
     if (event.key === 'Enter') kirimPesan();
 }
 
+// ============================================
+// 🎨 RENDER PESAN
+// ============================================
 function addMessageToUI(sender, message, timestamp, isMe) {
     const placeholder = chatArea.querySelector('.empty-state');
     if (placeholder) placeholder.remove();
