@@ -389,20 +389,3 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
-// ============================================
-// 🛡️ ANTI-SCREENSHOT (DASAR)
-// ============================================
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'PrintScreen') {
-        document.body.style.opacity = '0.1';
-        setTimeout(() => { document.body.style.opacity = '1'; }, 500);
-    }
-});
-
-document.addEventListener('visibilitychange', function() {
-    if (document.hidden) {
-        chatArea.style.filter = 'blur(10px)';
-    } else {
-        chatArea.style.filter = 'none';
-    }
-});
