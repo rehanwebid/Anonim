@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Anonymous Group</title>
     
     <!-- Font Orbitron -->
@@ -10,12 +10,26 @@
     
     <!-- CSS -->
     <link rel="stylesheet" href="style.css">
+    
+    <!-- ============================================ -->
+    <!-- 🛡️ ANTI CTRL+U / INSPECT / F12            -->
+    <!-- ============================================ -->
+    <script>
+        document.onkeydown = function(e) {
+            if (e.ctrlKey && e.key === 'u') { e.preventDefault(); return false; }
+            if (e.ctrlKey && e.shiftKey && e.key === 'I') { e.preventDefault(); return false; }
+            if (e.key === 'F12') { e.preventDefault(); return false; }
+            if (e.ctrlKey && e.shiftKey && e.key === 'J') { e.preventDefault(); return false; }
+            if (e.ctrlKey && e.shiftKey && e.key === 'C') { e.preventDefault(); return false; }
+            if (e.ctrlKey && e.key === 's') { e.preventDefault(); return false; }
+        };
+    </script>
 </head>
 <body>
     
     <!-- ========== HEADER ========== -->
     <div class="header">
-        <img src="pp.webp" alt="Profile" class="profile-pic">
+        <img src="https://via.placeholder.com/42" alt="Profile" class="profile-pic">
         <span class="group-name">Anonymous Group</span>
         <div class="spacer"></div>
         <div class="online-box">
@@ -33,14 +47,12 @@
     <!-- ========== AREA CHAT ========== -->
     <div class="chat-area" id="chatArea">
         <div class="empty-state">
-            Belum ada pesan.<br>Jadilah yang pertama!
+            Belum ada pesan.<br>Jadilah yang pertama! 🚀
         </div>
     </div>
 
     <!-- ========== INPUT ========== -->
     <div class="input-container" id="inputContainer">
-        
-        <!-- Pop-up Samarkan -->
         <div class="hide-popup" id="hidePopup">
             <span class="detected-text" id="detectedText"></span>
             <button class="hide-btn" onclick="samarkan()">
