@@ -1,9 +1,204 @@
 // ============================================
-// 👤 USER IDENTITY (User1, User2, User3...)
+// 👤 USER SESSION
 // ============================================
-let username = localStorage.getItem('anonUsername');
-let userNumber = localStorage.getItem('anonNumber');
-let userColor = localStorage.getItem('anonColor');
+let currentUser = null;
+
+// DOM Elements
+const loginOverlay = document.getElementById('loginOverlay');
+const mainApp = document.getElementById('mainApp');
+const signInForm = document.getElementById('signInForm');
+const signUpForm = document.getElementById('signUpForm');
+const loginLoading = document.getElementById('loginLoading');
+const loginError = document.getElementById('loginError');
+
+// Switch form
+document.getElementById('showSignUp').addEventListener('click', (e) => {
+    e.preventDefault();
+    signInForm.style.display = 'none';
+    signUpForm.style.display = 'block';
+    loginError.style.display = 'none';
+});
+
+document.getElementById('showSignIn').addEventListener('click', (e) => {
+    e.preventDefault();
+    signUpForm.style.display = 'none';
+    signInForm.style.display = 'block';
+    loginError.style.display = 'none';
+});
+
+// ============================================
+// 📝 SIGN UP
+// ============================================
+signUpForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const username = document.getElementById('signUpUsername').value.trim();
+    const email = document.getElementById('signUpEmail').value.trim();
+    const password = document.getElementById('signUpPassword').value;
+    const confirm = document.getElementById('signUpConfirm').value;
+    
+    // Validasi
+    if (!username || !email || !password || !confirm) {
+        showError('Semua field harus diisi!');
+        return;
+    }
+    
+    if (password !== confirm) {
+        showError('Password tidak cocok!');
+        return;
+    }
+    
+    if (password.length < 4) {
+        showError('Password minimal 4 karakter!');
+        return;
+    }
+    
+    // Show loading
+    showLoading();
+    
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'signUp',
+                username: username,
+                email: email,
+                password: password
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            // Auto login setelah daftar
+            currentUser = {
+                username: username,
+                email: email
+            };
+            localStorage.setItem('anonUsername', username);
+            localStorage.setItem('anonEmail', email);
+            enterChat();
+        } else {
+            showError(data.message || 'Gagal mendaftar!');
+        }
+    } catch (error) {
+        showError('Gagal terhubung ke server!');
+    }
+    
+    hideLoading();
+});
+
+// ============================================
+// 🔐 SIGN IN
+// ============================================
+signInForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const email = document.getElementById('signInEmail').value.trim();
+    const password = document.getElementById('signInPassword').value;
+    
+    if (!email || !password) {
+        showError('Semua field harus diisi!');
+        return;
+    }
+    
+    showLoading();
+    
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'signIn',
+                email: email,
+                password: password
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            currentUser = {
+                username: data.username,
+                email: email
+            };
+            localStorage.setItem('anonUsername', data.username);
+            localStorage.setItem('anonEmail', email);
+            enterChat();
+        } else {
+            showError(data.message || 'Email atau password salah!');
+        }
+    } catch (error) {
+        showError('Gagal terhubung ke server!');
+    }
+    
+    hideLoading();
+});
+
+// ============================================
+// 🚪 ENTER CHAT
+// ============================================
+function enterChat() {
+    loginOverlay.style.display = 'none';
+    mainApp.style.display = 'flex';
+    loadMessages();
+}
+
+// ============================================
+// 🚪 LOGOUT
+// ============================================
+function logout() {
+    localStorage.removeItem('anonUsername');
+    localStorage.removeItem('anonEmail');
+    currentUser = null;
+    mainApp.style.display = 'none';
+    loginOverlay.style.display = 'flex';
+    signInForm.style.display = 'block';
+    signUpForm.style.display = 'none';
+    document.getElementById('signInEmail').value = '';
+    document.getElementById('signInPassword').value = '';
+}
+
+// ============================================
+// ⏳ LOADING
+// ============================================
+function showLoading() {
+    signInForm.style.display = 'none';
+    signUpForm.style.display = 'none';
+    loginLoading.style.display = 'block';
+    loginError.style.display = 'none';
+}
+
+function hideLoading() {
+    loginLoading.style.display = 'none';
+    signInForm.style.display = 'block';
+}
+
+function showError(msg) {
+    loginError.textContent = msg;
+    loginError.style.display = 'block';
+}
+
+// ============================================
+// 🔄 AUTO LOGIN (CEK LOCALSTORAGE)
+// ============================================
+window.addEventListener('load', () => {
+    const savedUsername = localStorage.getItem('anonUsername');
+    const savedEmail = localStorage.getItem('anonEmail');
+    
+    if (savedUsername && savedEmail) {
+        currentUser = {
+            username: savedUsername,
+            email: savedEmail
+        };
+        enterChat();
+    }
+});
+
+// ============================================
+// CHAT FUNCTIONS (SAMA SEPERTI SEBELUMNYA)
+// ============================================
+let username = '';
+let userColor = '#FF6B6B';
 
 const colorPalette = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
@@ -11,46 +206,10 @@ const colorPalette = [
     '#BB8FCE', '#85C1E9', '#F8C471', '#82E0AA'
 ];
 
-async function initUser() {
-    if (!username || !userNumber || !userColor) {
-        try {
-            const response = await fetch(API_URL + '?action=getUserNumber');
-            const data = await response.json();
-            
-            if (data.status === 'success') {
-                userNumber = data.userCount + 1;
-                username = 'User' + userNumber;
-                userColor = colorPalette[(data.userCount) % colorPalette.length];
-                
-                localStorage.setItem('anonUsername', username);
-                localStorage.setItem('anonNumber', userNumber);
-                localStorage.setItem('anonColor', userColor);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            userNumber = Math.floor(Math.random() * 9999);
-            username = 'User' + userNumber;
-            userColor = colorPalette[Math.floor(Math.random() * colorPalette.length)];
-            localStorage.setItem('anonUsername', username);
-            localStorage.setItem('anonNumber', userNumber);
-            localStorage.setItem('anonColor', userColor);
-        }
-    }
-}
-
-// Panggil initUser saat load
-initUser();
-
-// ============================================
-// TRACKING
-// ============================================
 let lastMessageId = 0;
 let renderedMessageIds = new Set();
 let isFirstLoad = true;
 
-// ============================================
-// DOM ELEMENTS
-// ============================================
 const chatArea = document.getElementById('chatArea');
 const messageInput = document.getElementById('messageInput');
 const onlineText = document.getElementById('onlineText');
@@ -58,19 +217,15 @@ const onlineDot = document.getElementById('onlineDot');
 const hidePopup = document.getElementById('hidePopup');
 const detectedText = document.getElementById('detectedText');
 
-// ============================================
-// SENSITIVE DETECTION
-// ============================================
 let currentSensitiveText = '';
 let sensitiveRange = null;
 
-// ============================================
-// 🔄 POLLING
-// ============================================
 setInterval(loadMessages, 1000);
-loadMessages();
 
 async function loadMessages() {
+    if (!currentUser) return;
+    username = currentUser.username;
+    
     try {
         const response = await fetch(`${API_URL}?action=getMessages&lastId=${lastMessageId}`);
         const data = await response.json();
@@ -104,33 +259,20 @@ async function loadMessages() {
         }
     } catch (error) {
         console.error('Error:', error);
-        if (isFirstLoad) {
-            chatArea.innerHTML = '<div class="empty-state" style="color: #ff4444;">⚠️ Gagal terhubung</div>';
-        }
     }
 }
 
 function updateOnlineIndicator(count) {
     onlineText.textContent = count + ' Online';
-    if (count > 0) {
-        onlineDot.classList.add('active');
-    } else {
-        onlineDot.classList.remove('active');
-    }
+    onlineDot.classList.toggle('active', count > 0);
 }
 
-// ============================================
-// 🔍 DETEKSI NOMOR & LINK
-// ============================================
 function deteksiSensitif() {
     const text = messageInput.value;
     const cursorPos = messageInput.selectionStart;
-    
     const phoneRegex = /(\+?62|0)8[1-9][0-9]{6,11}/g;
     const linkRegex = /https?:\/\/[^\s]+/g;
-    
-    let match;
-    let found = false;
+    let match, found = false;
     
     while ((match = phoneRegex.exec(text)) !== null) {
         if (cursorPos >= match.index && cursorPos <= match.index + match[0].length) {
@@ -155,9 +297,7 @@ function deteksiSensitif() {
         }
     }
     
-    if (!found) {
-        hidePopupFn();
-    }
+    if (!found) hidePopupFn();
 }
 
 function showPopup(text) {
@@ -171,42 +311,26 @@ function hidePopupFn() {
     sensitiveRange = null;
 }
 
-function batalSamarkan() {
-    hidePopupFn();
-    messageInput.focus();
-}
+function batalSamarkan() { hidePopupFn(); messageInput.focus(); }
 
-// ============================================
-// 🔒 SAMARKAN
-// ============================================
 function samarkan() {
     if (!currentSensitiveText || !sensitiveRange) return;
-    
     const text = messageInput.value;
-    const before = text.substring(0, sensitiveRange.start);
-    const after = text.substring(sensitiveRange.end);
-    
-    const encrypted = '[[HIDDEN:' + btoa(currentSensitiveText) + ']]';
-    messageInput.value = before + encrypted + after;
-    
+    messageInput.value = text.substring(0, sensitiveRange.start) + '[[HIDDEN:' + btoa(currentSensitiveText) + ']]' + text.substring(sensitiveRange.end);
     hidePopupFn();
     messageInput.focus();
 }
 
-// ============================================
-// 📤 KIRIM PESAN
-// ============================================
 function kirimPesan() {
     const message = messageInput.value.trim();
-    if (!message) return;
-    
+    if (!message || !currentUser) return;
     messageInput.value = '';
     
     fetch(API_URL, {
         method: 'POST',
         body: JSON.stringify({
             action: 'sendMessage',
-            sender: username,
+            sender: currentUser.username,
             message: message,
             color: userColor
         })
@@ -214,14 +338,9 @@ function kirimPesan() {
 }
 
 function handleKeyPress(event) {
-    if (event.key === 'Enter') {
-        kirimPesan();
-    }
+    if (event.key === 'Enter') kirimPesan();
 }
 
-// ============================================
-// 🎨 RENDER PESAN
-// ============================================
 function addMessageToUI(sender, message, timestamp, isMe) {
     const placeholder = chatArea.querySelector('.empty-state');
     if (placeholder) placeholder.remove();
@@ -229,27 +348,19 @@ function addMessageToUI(sender, message, timestamp, isMe) {
     const wrapper = document.createElement('div');
     wrapper.className = 'message-wrapper ' + (isMe ? 'me' : 'other');
     
-    // Tampilkan username apa adanya (User1, User2, dst)
-    const displayNumber = sender;
-    
     const parsedMessage = parseHiddenText(message);
     
     wrapper.innerHTML = `
-        <div class="user-number">${escapeHtml(displayNumber)}</div>
+        <div class="user-number">${escapeHtml(sender)}</div>
         <div class="bubble">${parsedMessage}</div>
         <div class="time">${formatTime(timestamp)}</div>
     `;
     
-    // Click to reveal
     wrapper.querySelectorAll('.hidden-text').forEach(el => {
         el.addEventListener('click', function(e) {
             e.stopPropagation();
             this.classList.toggle('revealed');
-            if (this.classList.contains('revealed')) {
-                this.textContent = this.dataset.original;
-            } else {
-                this.textContent = '••••••••';
-            }
+            this.textContent = this.classList.contains('revealed') ? this.dataset.original : '••••••••';
         });
     });
     
@@ -257,18 +368,11 @@ function addMessageToUI(sender, message, timestamp, isMe) {
     chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-// ============================================
-// 🔐 PARSE HIDDEN TEXT
-// ============================================
 function parseHiddenText(text) {
-    const regex = /\[\[HIDDEN:(.*?)\]\]/g;
-    return text.replace(regex, (match, encoded) => {
+    return text.replace(/\[\[HIDDEN:(.*?)\]\]/g, (match, encoded) => {
         try {
-            const original = atob(encoded);
-            return `<span class="hidden-text" data-original="${escapeHtml(original)}">••••••••</span>`;
-        } catch(e) {
-            return match;
-        }
+            return `<span class="hidden-text" data-original="${escapeHtml(atob(encoded))}">••••••••</span>`;
+        } catch(e) { return match; }
     });
 }
 
@@ -276,9 +380,8 @@ function formatTime(timestamp) {
     if (!timestamp) return '';
     try {
         const parts = timestamp.split(' ');
-        if (parts.length >= 2) return parts[1].substring(0, 5);
-    } catch(e) {}
-    return '';
+        return parts.length >= 2 ? parts[1].substring(0, 5) : '';
+    } catch(e) { return ''; }
 }
 
 function escapeHtml(text) {
@@ -286,7 +389,6 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
-
 // ============================================
 // 🛡️ ANTI-SCREENSHOT (DASAR)
 // ============================================
