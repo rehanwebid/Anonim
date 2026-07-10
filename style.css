@@ -655,3 +655,34 @@ body {
     height: 100vh;
     width: 100vw;
 }
+
+/* Tambahan di style.css */
+.google-btn {
+    width: 100%;
+    padding: 12px;
+    background: white;
+    color: #333;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: opacity 0.2s;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.google-btn:hover {
+    opacity: 0.9;
+}
+
+.privacy-text {
+    margin-top: 16px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    line-height: 1.5;
+}
