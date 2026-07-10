@@ -136,13 +136,14 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
+    <!-- ============================================ -->
+    <!-- FIREBASE SDK (LOAD DULU SEBELUM SCRIPT.JS)  -->
+    <!-- ============================================ -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-        import { getDatabase, ref, push, onChildAdded, set, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+        import { getDatabase, ref, push, onChildAdded, set, get, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
         
-        // Config
         const firebaseConfig = {
             apiKey: "AIzaSyAJvvJKNLJyFlAjAs_3-3puHW29T6wn4NI",
             authDomain: "anonymous-group-bbdd6.firebaseapp.com",
@@ -158,6 +159,7 @@
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
         
+        // Export ke window biar bisa diakses script.js
         window.db = db;
         window.auth = auth;
         window.provider = provider;
@@ -165,12 +167,16 @@
         window.push = push;
         window.onChildAdded = onChildAdded;
         window.set = set;
+        window.get = get;
         window.serverTimestamp = serverTimestamp;
         window.signInWithPopup = signInWithPopup;
         window.onAuthStateChanged = onAuthStateChanged;
         window.signOut = signOut;
     </script>
 
+    <!-- ============================================ -->
+    <!-- SCRIPT.JS (LOAD SETELAH FIREBASE)           -->
+    <!-- ============================================ -->
     <script src="script.js"></script>
 </body>
 </html>
