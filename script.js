@@ -4,6 +4,16 @@
 let currentUser = null;
 let anonymousName = '';
 
+// Firebase functions dari window
+const ref = window.ref;
+const push = window.push;
+const onChildAdded = window.onChildAdded;
+const set = window.set;
+const serverTimestamp = window.serverTimestamp;
+const signInWithPopup = window.signInWithPopup;
+const onAuthStateChanged = window.onAuthStateChanged;
+const signOut = window.signOut;
+
 // DOM
 const loginOverlay = document.getElementById('loginOverlay');
 const mainApp = document.getElementById('mainApp');
@@ -15,6 +25,10 @@ const onlineText = document.getElementById('onlineText');
 const onlineDot = document.getElementById('onlineDot');
 const hidePopup = document.getElementById('hidePopup');
 const detectedText = document.getElementById('detectedText');
+
+// Sensitive detection
+let currentSensitiveText = '';
+let sensitiveRange = null;
 
 // ============================================
 // 🔐 GOOGLE SIGN IN
@@ -66,6 +80,7 @@ window.logout = function() {
     localStorage.removeItem('anonUID');
     localStorage.removeItem('anonName');
     currentUser = null;
+    anonymousName = '';
     mainApp.style.display = 'none';
     loginOverlay.style.display = 'flex';
     document.getElementById('googleSignInBtn').style.display = 'flex';
@@ -80,6 +95,9 @@ window.addEventListener('load', () => {
     onAuthStateChanged(auth, (user) => {
         if (user) {
             anonymousName = localStorage.getItem('anonName') || 'Anonymous' + Math.floor(Math.random() * 9999);
+            if (!localStorage.getItem('anonName')) {
+                localStorage.setItem('anonName', anonymousName);
+            }
             currentUser = {
                 uid: user.uid,
                 email: user.email,
@@ -100,31 +118,33 @@ function updateOnlineStatus(isOnline) {
     if (isOnline) {
         set(onlineRef, {
             name: anonymousName,
-            timestamp: serverTimestamp()
+            timestamp: Date.now()
         });
     } else {
         set(onlineRef, null);
     }
 }
 
-// Listen online users
-const onlineRef = ref(db, 'online');
-onChildAdded(onlineRef, () => updateOnlineCount());
-// Update count periodically
+// Update online count
 setInterval(updateOnlineCount, 5000);
 
-function updateOnlineCount() {
-    const onlineRef = ref(db, 'online');
-    onChildAdded(onlineRef, (snapshot) => {
-        let count = 0;
-        snapshot.forEach(() => count++);
-        onlineText.textContent = count + ' Online';
-        onlineDot.classList.toggle('active', count > 0);
-    });
+async function updateOnlineCount() {
+    try {
+        const snapshot = await get(ref(db, 'online'));
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            const count = Object.keys(data).length;
+            onlineText.textContent = count + ' Online';
+            onlineDot.classList.toggle('active', count > 0);
+        } else {
+            onlineText.textContent = '0 Online';
+            onlineDot.classList.remove('active');
+        }
+    } catch(e) {}
 }
 
 // ============================================
-// 💬 LISTEN MESSAGES (REALTIME!)
+// 💬 LISTEN MESSAGES (REALTIME)
 // ============================================
 function listenMessages() {
     const messagesRef = ref(db, 'messages');
@@ -180,11 +200,8 @@ function addMessageToUI(sender, message, timestamp, isMe) {
 }
 
 // ============================================
-// 🔍 DETEKSI SENSITIF
+// 🔍 DETEKSI NOMOR & LINK
 // ============================================
-let currentSensitiveText = '';
-let sensitiveRange = null;
-
 function deteksiSensitif() {
     const text = messageInput.value;
     const cursorPos = messageInput.selectionStart;
@@ -241,6 +258,9 @@ function samarkan() {
     messageInput.focus();
 }
 
+// ============================================
+// 🛠️ HELPERS
+// ============================================
 function formatTime(timestamp) {
     if (!timestamp) return '';
     try {
