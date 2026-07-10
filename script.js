@@ -4,15 +4,10 @@
 let currentUser = null;
 let anonymousName = '';
 
-// Firebase functions dari window
-const ref = window.ref;
-const push = window.push;
-const onChildAdded = window.onChildAdded;
-const set = window.set;
-const serverTimestamp = window.serverTimestamp;
-const signInWithPopup = window.signInWithPopup;
-const onAuthStateChanged = window.onAuthStateChanged;
-const signOut = window.signOut;
+// Firebase references (diisi setelah Firebase siap)
+let db, auth, provider;
+let ref, push, onChildAdded, set, get, serverTimestamp;
+let signInWithPopup, onAuthStateChanged, signOut;
 
 // DOM
 const loginOverlay = document.getElementById('loginOverlay');
@@ -31,9 +26,39 @@ let currentSensitiveText = '';
 let sensitiveRange = null;
 
 // ============================================
+// ⏳ TUNGGU FIREBASE SIAP
+// ============================================
+function waitForFirebase(callback) {
+    if (window.auth && window.db) {
+        // Assign Firebase functions
+        db = window.db;
+        auth = window.auth;
+        provider = window.provider;
+        ref = window.ref;
+        push = window.push;
+        onChildAdded = window.onChildAdded;
+        set = window.set;
+        get = window.get;
+        serverTimestamp = window.serverTimestamp;
+        signInWithPopup = window.signInWithPopup;
+        onAuthStateChanged = window.onAuthStateChanged;
+        signOut = window.signOut;
+        callback();
+    } else {
+        setTimeout(() => waitForFirebase(callback), 100);
+    }
+}
+
+// ============================================
 // 🔐 GOOGLE SIGN IN
 // ============================================
 window.signInWithGoogle = async function() {
+    if (!auth || !provider) {
+        loginError.textContent = 'Firebase belum siap. Tunggu sebentar...';
+        loginError.style.display = 'block';
+        return;
+    }
+    
     loginLoading.style.display = 'block';
     document.getElementById('googleSignInBtn').style.display = 'none';
     loginError.style.display = 'none';
@@ -42,7 +67,6 @@ window.signInWithGoogle = async function() {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
         
-        // Generate anonymous name
         anonymousName = 'Anonymous' + Math.floor(Math.random() * 9999);
         
         currentUser = {
@@ -76,6 +100,7 @@ function enterChat() {
 }
 
 window.logout = function() {
+    if (!signOut || !auth) return;
     signOut(auth);
     localStorage.removeItem('anonUID');
     localStorage.removeItem('anonName');
@@ -91,7 +116,7 @@ window.logout = function() {
 // ============================================
 // 🔄 AUTO LOGIN
 // ============================================
-window.addEventListener('load', () => {
+waitForFirebase(() => {
     onAuthStateChanged(auth, (user) => {
         if (user) {
             anonymousName = localStorage.getItem('anonName') || 'Anonymous' + Math.floor(Math.random() * 9999);
@@ -112,7 +137,7 @@ window.addEventListener('load', () => {
 // 🟢 ONLINE STATUS
 // ============================================
 function updateOnlineStatus(isOnline) {
-    if (!currentUser) return;
+    if (!currentUser || !db) return;
     const onlineRef = ref(db, 'online/' + currentUser.uid);
     
     if (isOnline) {
@@ -125,8 +150,10 @@ function updateOnlineStatus(isOnline) {
     }
 }
 
-// Update online count
-setInterval(updateOnlineCount, 5000);
+setInterval(() => {
+    if (!db) return;
+    updateOnlineCount();
+}, 5000);
 
 async function updateOnlineCount() {
     try {
@@ -147,6 +174,7 @@ async function updateOnlineCount() {
 // 💬 LISTEN MESSAGES (REALTIME)
 // ============================================
 function listenMessages() {
+    if (!db) return;
     const messagesRef = ref(db, 'messages');
     
     onChildAdded(messagesRef, (snapshot) => {
@@ -159,9 +187,9 @@ function listenMessages() {
 // ============================================
 // 📤 KIRIM PESAN
 // ============================================
-function kirimPesan() {
+window.kirimPesan = function() {
     const message = messageInput.value.trim();
-    if (!message || !currentUser) return;
+    if (!message || !currentUser || !db) return;
     
     const messagesRef = ref(db, 'messages');
     
@@ -173,11 +201,11 @@ function kirimPesan() {
     });
     
     messageInput.value = '';
-}
+};
 
-function handleKeyPress(event) {
-    if (event.key === 'Enter') kirimPesan();
-}
+window.handleKeyPress = function(event) {
+    if (event.key === 'Enter') window.kirimPesan();
+};
 
 // ============================================
 // 🎨 RENDER PESAN
@@ -200,9 +228,9 @@ function addMessageToUI(sender, message, timestamp, isMe) {
 }
 
 // ============================================
-// 🔍 DETEKSI NOMOR & LINK
+// 🔍 DETEKSI
 // ============================================
-function deteksiSensitif() {
+window.deteksiSensitif = function() {
     const text = messageInput.value;
     const cursorPos = messageInput.selectionStart;
     const phoneRegex = /(\+?62|0)8[1-9][0-9]{6,11}/g;
@@ -233,7 +261,7 @@ function deteksiSensitif() {
     }
     
     if (!found) hidePopupFn();
-}
+};
 
 function showPopup(text) {
     detectedText.textContent = text.length > 20 ? text.substring(0, 20) + '...' : text;
@@ -246,9 +274,9 @@ function hidePopupFn() {
     sensitiveRange = null;
 }
 
-function batalSamarkan() { hidePopupFn(); messageInput.focus(); }
+window.batalSamarkan = function() { hidePopupFn(); messageInput.focus(); };
 
-function samarkan() {
+window.samarkan = function() {
     if (!currentSensitiveText || !sensitiveRange) return;
     const text = messageInput.value;
     messageInput.value = text.substring(0, sensitiveRange.start) + 
@@ -256,7 +284,7 @@ function samarkan() {
         text.substring(sensitiveRange.end);
     hidePopupFn();
     messageInput.focus();
-}
+};
 
 // ============================================
 // 🛠️ HELPERS
